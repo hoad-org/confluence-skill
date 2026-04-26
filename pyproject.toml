@@ -38,6 +38,9 @@ jsonschema = "^4.20.0"
 requests = "^2.31.0"
 mcp = "^1.0.0"
 
+[tool.poetry.scripts]
+confluence = "confluence_skill.cli:main"
+
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.0"
 pytest-cov = "^6.0.0"
