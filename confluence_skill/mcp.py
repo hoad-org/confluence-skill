@@ -11,20 +11,22 @@ The server exposes three main tools:
 
 import json
 import logging
+import sys
 from typing import Any
 
-from mcp.server import Server
-from mcp.types import Tool, TextContent
+from mcp.server import FastMCP
+from mcp.types import TextContent
 
 from confluence_skill.skill import ConfluenceSkill
 from confluence_skill.models import SkillConfig
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Set up logging (to stderr to not interfere with stdout)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    stream=sys.stderr,
+)
 logger = logging.getLogger(__name__)
-
-# Create MCP server
-server = Server("confluence-skill")
 
 
 def get_default_config() -> SkillConfig:
@@ -38,6 +40,10 @@ def get_default_config() -> SkillConfig:
     except FileNotFoundError:
         logger.warning("No .confluence.yaml found, using environment variables only")
         return SkillConfig.from_env()
+
+
+# Create MCP server using FastMCP (simpler API)
+mcp = FastMCP("confluence-skill")
 
 
 # Define tools
@@ -54,8 +60,8 @@ TOOLS: list[dict[str, Any]] = [
                     "enum": ["api", "architecture", "adr", "runbook", "feature", "infrastructure", "troubleshooting", "custom"],
                     "description": "Type of documentation to generate",
                 },
-                "repo_path": {"type": "string", "description": "Path to code repository"},
-                "dry_run": {"type": "boolean", "description": "Preview only, don't publish", "default": True},
+                "repo_path": {"type": "string", "description": "Path to code repository (default: '.')"},
+                "dry_run": {"type": "boolean", "description": "Preview only, don't publish (default: true)"},
             },
             "required": ["task", "doc_type"],
         },
@@ -68,7 +74,7 @@ TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "query": {"type": "string", "description": "Search query"},
                 "space_key": {"type": "string", "description": "Confluence space key (optional)"},
-                "max_results": {"type": "integer", "description": "Maximum results to return", "default": 10},
+                "max_results": {"type": "integer", "description": "Maximum results to return (default: 10)"},
             },
             "required": ["query"],
         },
@@ -80,7 +86,7 @@ TOOLS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "page_id": {"type": "string", "description": "Confluence page ID"},
-                "reason": {"type": "string", "description": "Reason for archival"},
+                "reason": {"type": "string", "description": "Reason for archival (optional)"},
             },
             "required": ["page_id"],
         },
@@ -88,103 +94,98 @@ TOOLS: list[dict[str, Any]] = [
 ]
 
 
-@server.list_tools()
-async def list_tools() -> list[Tool]:
-    """List available tools.
-
-    Returns:
-        List of Tool objects describing available operations
-    """
-    return [
-        Tool(
-            name=tool["name"],
-            description=tool["description"],
-            inputSchema=tool["inputSchema"],
-        )
-        for tool in TOOLS
-    ]
-
-
-@server.call_tool()
-async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-    """Handle tool calls from Claude.
+@mcp.tool()
+def confluence_document(task: str, doc_type: str, repo_path: str = ".", dry_run: bool = True) -> str:
+    """Generate documentation from code repositories and publish to Confluence.
 
     Args:
-        name: Tool name
-        arguments: Tool arguments
+        task: Documentation task or prompt
+        doc_type: Type of documentation (api, architecture, adr, runbook, feature, infrastructure, troubleshooting, custom)
+        repo_path: Path to code repository
+        dry_run: Preview only, don't publish
 
     Returns:
-        Tool result with output and any errors
+        Documentation summary
     """
     try:
         config = get_default_config()
         skill = ConfluenceSkill(config)
 
-        if name == "confluence_document":
-            task = arguments.get("task", "")
-            doc_type = arguments.get("doc_type", "api")
-            repo_path = arguments.get("repo_path", ".")
-            dry_run = arguments.get("dry_run", True)
-
-            result = skill.document(
-                task=task,
-                doc_type=doc_type,
-                repo_path=repo_path,
-                dry_run=dry_run,
-            )
-            return [TextContent(type="text", text=result.summary)]
-
-        elif name == "confluence_search":
-            query = arguments.get("query", "")
-            space_key = arguments.get("space_key")
-            max_results = arguments.get("max_results", 10)
-
-            pages = skill.search_pages(
-                query=query,
-                space_key=space_key,
-            )
-
-            # Format results
-            results_text = f"Found {len(pages)} pages:\n"
-            for page in pages[:max_results]:
-                results_text += f"- {page.get('title', 'Untitled')} (ID: {page.get('id')})\n"
-
-            return [TextContent(type="text", text=results_text)]
-
-        elif name == "confluence_archive":
-            page_id = arguments.get("page_id", "")
-            reason = arguments.get("reason", "Archived by automation")
-
-            result = skill.archive_page(page_id=page_id)
-
-            return [
-                TextContent(
-                    type="text",
-                    text=f"Successfully archived page {page_id}. Reason: {reason}",
-                )
-            ]
-
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
-
+        result = skill.document(
+            task=task,
+            doc_type=doc_type,
+            repo_path=repo_path,
+            dry_run=dry_run,
+        )
+        return result.summary
     except Exception as e:
-        error_msg = f"Error executing {name}: {str(e)}"
+        error_msg = f"Error generating documentation: {str(e)}"
         logger.error(error_msg, exc_info=True)
-        return [TextContent(type="text", text=error_msg)]
+        return error_msg
 
 
-async def serve() -> None:
-    """Run the MCP server.
+@mcp.tool()
+def confluence_search(query: str, space_key: str | None = None, max_results: int = 10) -> str:
+    """Search for pages in a Confluence space by title or content.
 
-    This function starts the server and listens for requests from Claude
-    or other MCP clients. It should be called as the main entry point.
+    Args:
+        query: Search query
+        space_key: Confluence space key (optional)
+        max_results: Maximum results to return
+
+    Returns:
+        Search results
     """
-    async with server:
-        logger.info("Confluence Skill MCP server started")
-        await server.wait()
+    try:
+        config = get_default_config()
+        skill = ConfluenceSkill(config)
+
+        pages = skill.search_pages(
+            query=query,
+            space_key=space_key,
+        )
+
+        # Format results
+        results_text = f"Found {len(pages)} pages:\n"
+        for page in pages[:max_results]:
+            results_text += f"- {page.get('title', 'Untitled')} (ID: {page.get('id')})\n"
+
+        return results_text
+    except Exception as e:
+        error_msg = f"Error searching pages: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return error_msg
+
+
+@mcp.tool()
+def confluence_archive(page_id: str, reason: str = "Archived by automation") -> str:
+    """Archive a Confluence page safely (preferred over deletion).
+
+    Args:
+        page_id: Confluence page ID
+        reason: Reason for archival
+
+    Returns:
+        Archival result
+    """
+    try:
+        config = get_default_config()
+        skill = ConfluenceSkill(config)
+
+        result = skill.archive_page(page_id=page_id)
+
+        return f"Successfully archived page {page_id}. Reason: {reason}"
+    except Exception as e:
+        error_msg = f"Error archiving page: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return error_msg
+
+
+def serve() -> None:
+    """Run the MCP server."""
+    logger.info("Confluence Skill MCP server starting...")
+    mcp.run()
 
 
 if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(serve())
+    serve()
