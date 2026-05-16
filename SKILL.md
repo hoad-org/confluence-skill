@@ -1,6 +1,6 @@
 ---
 name: confluence
-version: 1.2.0
+version: 1.3.1
 description: Confluence (via Atlassian Connector) — Enterprise-grade Confluence Cloud documentation skill using the native Atlassian connector. Generates docs from code, manages pages at scale, links to Jira, and uses multiple templates. Always uses Atlassian connector authentication—never tokens or alternative setups. Use this skill whenever you need to: generate documentation from code repositories, create or update Confluence pages, search for documentation, archive pages, manage page hierarchies, or perform any Confluence Cloud operation.
 author: Craig Hoad
 ---
