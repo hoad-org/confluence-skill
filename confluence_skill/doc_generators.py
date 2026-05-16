@@ -1,16 +1,15 @@
 """Template-based documentation generation."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import Optional
+from datetime import UTC, datetime
 
-from .models import DocumentTemplate, DocumentMetadata
+from .models import DocumentMetadata, DocumentTemplate
 
 
 class DocGenerator(ABC):
     """Base class for document generators."""
 
-    def __init__(self, metadata: DocumentMetadata, extracted_info: Optional[dict] = None):
+    def __init__(self, metadata: DocumentMetadata, extracted_info: dict | None = None):
         """Initialize generator.
 
         Args:
@@ -41,7 +40,7 @@ class DocGenerator(ABC):
         return f"""<ac:structured-macro ac:name="info">
   <ac:parameter ac:name="icon">true</ac:parameter>
   <ac:rich-text-body>
-    <p><em>Auto-generated on {datetime.utcnow().isoformat()} by Confluence Skill</em></p>
+    <p><em>Auto-generated on {datetime.now(UTC).isoformat()} by Confluence Skill</em></p>
   </ac:rich-text-body>
 </ac:structured-macro>
 {html}"""
@@ -171,13 +170,17 @@ class ADRDocGenerator(DocGenerator):
         parts.append(f"<p><strong>{self.metadata.status.upper()}</strong></p>")
 
         parts.append("<h2>Context</h2>")
-        parts.append("<p>The issue motivating this decision and any context that influences or constrains the decision.</p>")
+        parts.append(
+            "<p>The issue motivating this decision and any context that influences or constrains the decision.</p>"
+        )
 
         parts.append("<h2>Decision</h2>")
         parts.append("<p>The change that we're proposing or have agreed to do.</p>")
 
         parts.append("<h2>Consequences</h2>")
-        parts.append("<p>What becomes easier or more difficult to do and any risks introduced by the change that will need to be mitigated.</p>")
+        parts.append(
+            "<p>What becomes easier or more difficult to do and any risks introduced by the change that will need to be mitigated.</p>"
+        )
 
         return self._wrap_storage("\n".join(parts))
 
@@ -290,7 +293,7 @@ class CustomDocGenerator(DocGenerator):
 def create_generator(
     template: DocumentTemplate,
     metadata: DocumentMetadata,
-    extracted_info: Optional[dict] = None,
+    extracted_info: dict | None = None,
 ) -> DocGenerator:
     """Factory function to create appropriate document generator.
 

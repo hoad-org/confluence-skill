@@ -1,26 +1,24 @@
 """Main Confluence documentation skill."""
 
-import hashlib
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.panel import Panel
 
 from .code_scanner import CodeScanner
 from .confluence_client import ConfluenceClient, InputValidator
-from .doc_generators import create_generator, DocumentTemplate
-from .guardrails import GuardailValidator, ApprovalGate
+from .doc_generators import DocumentTemplate, create_generator
+from .guardrails import ApprovalGate, GuardailValidator
 from .jira_integration import JiraIntegration
 from .models import (
-    SkillConfig,
-    LocalConfig,
-    DocumentMetadata,
     DocumentChange,
     DocumentGenerationResult,
+    DocumentMetadata,
+    LocalConfig,
+    SkillConfig,
     ValidationError,
 )
 
@@ -44,11 +42,19 @@ class ConfluenceSkill:
         # Validate required configuration
         config_errors = config.validate_required_fields()
         if config_errors:
-            raise ValueError(f"Configuration errors:\n" + "\n".join(f"  - {e}" for e in config_errors))
+            raise ValueError("Configuration errors:\n" + "\n".join(f"  - {e}" for e in config_errors))
 
         self.config = config
         self.console = Console()
-        self.client = ConfluenceClient(config.confluence)
+        self.client = ConfluenceClient(
+            config.confluence,
+            guardrails_config={
+                "enforce_page_nesting": config.guardrails.enforce_page_nesting,
+                "max_page_depth": config.guardrails.max_page_depth,
+                "parent_page_only_for_roots": config.guardrails.parent_page_only_for_roots,
+                "aws_documentation_style": config.guardrails.aws_documentation_style,
+            },
+        )
         self.scanner = CodeScanner(config.code_analysis)
         self.validator = GuardailValidator(config.guardrails)
         self.approval_gate = ApprovalGate(
@@ -60,12 +66,12 @@ class ConfluenceSkill:
     def document(
         self,
         task: str,
-        repos: Optional[list[str]] = None,
-        doc_type: Optional[str] = None,
-        space_key: Optional[str] = None,
-        parent_page_title: Optional[str] = None,
-        repo_path: Optional[str] = None,
-        dry_run: Optional[bool] = None,
+        repos: list[str] | None = None,
+        doc_type: str | None = None,
+        space_key: str | None = None,
+        parent_page_title: str | None = None,
+        repo_path: str | None = None,
+        dry_run: bool | None = None,
         interactive: bool = False,
     ) -> DocumentGenerationResult:
         """Generate documentation from task description and code.
@@ -93,7 +99,7 @@ class ConfluenceSkill:
         working_config = self.config
 
         try:
-            self.console.print(f"\n[bold blue]Confluence Documentation Skill[/bold blue]")
+            self.console.print("\n[bold blue]Confluence Documentation Skill[/bold blue]")
             self.console.print(f"Task: {task}\n")
 
             # 0. Load and merge local config if provided
@@ -224,12 +230,14 @@ class ConfluenceSkill:
                         labels=metadata.labels,
                     )
                     result.document_id = page["id"]
-                    result.document_url = f"{self.config.confluence.instance_url}/wiki/spaces/{doc_config.space_key}/pages/{page['id']}"
+                    result.document_url = (
+                        f"{self.config.confluence.instance_url}/wiki/spaces/{doc_config.space_key}/pages/{page['id']}"
+                    )
                     self.console.print(f"[green]✅ Updated page: {page['id']}[/green]")
 
                     # Add audit comment
                     if self.config.output.create_audit_trail:
-                        comment = f"Updated by Confluence Skill on {datetime.utcnow().isoformat()}"
+                        comment = f"Updated by Confluence Skill on {datetime.now(UTC).isoformat()}"
                         self.client.add_page_comment(page["id"], f"<p>{comment}</p>")
                 else:
                     page = self.client.create_page(
@@ -240,7 +248,9 @@ class ConfluenceSkill:
                         labels=metadata.labels,
                     )
                     result.document_id = page["id"]
-                    result.document_url = f"{self.config.confluence.instance_url}/wiki/spaces/{doc_config.space_key}/pages/{page['id']}"
+                    result.document_url = (
+                        f"{self.config.confluence.instance_url}/wiki/spaces/{doc_config.space_key}/pages/{page['id']}"
+                    )
                     self.console.print(f"[green]✅ Created page: {page['id']}[/green]")
 
                 result.success = True
@@ -251,7 +261,7 @@ class ConfluenceSkill:
                     project = jira_integration.config.default_project
                     if project:
                         # Link related issues
-                        issues = jira_integration.link_related_issues(
+                        _ = jira_integration.link_related_issues(
                             result.document_id,
                             project,
                             metadata.title,
@@ -265,7 +275,11 @@ class ConfluenceSkill:
                                 created = jira_integration.create_tasks_for_gaps(
                                     project,
                                     apis,
-                                    epic_key=jira_integration.client.find_epic_for_service(project, metadata.title) if jira_integration.config.epic_link_pattern else None,
+                                    epic_key=(
+                                        jira_integration.client.find_epic_for_service(project, metadata.title)
+                                        if jira_integration.config.epic_link_pattern
+                                        else None
+                                    ),
                                 )
                                 if created:
                                     self.console.print(
@@ -273,7 +287,7 @@ class ConfluenceSkill:
                                     )
 
         except Exception as e:
-            self.console.print(f"[red]❌ Error: {str(e)}[/red]")
+            self.console.print(f"[red]❌ Error: {e!s}[/red]")
             result.errors.append(
                 ValidationError(
                     level="error",
@@ -399,25 +413,33 @@ class ConfluenceSkill:
             version=doc_config.metadata.version or "1.0",
             owner=doc_config.metadata.owner,
             audience=doc_config.metadata.audience,
-            status=doc_config.metadata.status.value if hasattr(doc_config.metadata.status, "value") else doc_config.metadata.status,
+            status=(
+                doc_config.metadata.status.value
+                if hasattr(doc_config.metadata.status, "value")
+                else doc_config.metadata.status
+            ),
             labels=labels,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
         )
 
         return metadata
 
-    def _handle_existing_page(self, existing_page: dict, metadata: DocumentMetadata, doc_config) -> Optional[str]:
+    def _handle_existing_page(self, _existing_page: dict, metadata: DocumentMetadata, doc_config) -> str | None:
         """Handle strategy for existing pages.
 
         Args:
-            existing_page: Existing page data
+            _existing_page: Existing page data
             metadata: New metadata
             doc_config: Documentation configuration
 
         Returns:
             Merge strategy (append, replace, skip) or None
         """
-        strategy = doc_config.merge_strategy.value if hasattr(doc_config.merge_strategy, "value") else doc_config.merge_strategy
+        strategy = (
+            doc_config.merge_strategy.value
+            if hasattr(doc_config.merge_strategy, "value")
+            else doc_config.merge_strategy
+        )
 
         if strategy == "interactive":
             # Ask user
@@ -427,7 +449,7 @@ class ConfluenceSkill:
         self.console.print(f"   Using merge strategy: {strategy}")
         return strategy
 
-    def _get_parent_page_id(self, doc_config) -> Optional[str]:
+    def _get_parent_page_id(self, doc_config) -> str | None:
         """Get parent page ID.
 
         Args:

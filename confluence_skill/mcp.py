@@ -9,16 +9,14 @@ The server exposes three main tools:
 - confluence_archive: Archive pages safely
 """
 
-import json
 import logging
 import sys
 from typing import Any
 
 from mcp.server import FastMCP
-from mcp.types import TextContent
 
-from confluence_skill.skill import ConfluenceSkill
 from confluence_skill.models import SkillConfig
+from confluence_skill.skill import ConfluenceSkill
 
 # Set up logging (to stderr to not interfere with stdout)
 logging.basicConfig(
@@ -57,7 +55,16 @@ TOOLS: list[dict[str, Any]] = [
                 "task": {"type": "string", "description": "Documentation task or prompt"},
                 "doc_type": {
                     "type": "string",
-                    "enum": ["api", "architecture", "adr", "runbook", "feature", "infrastructure", "troubleshooting", "custom"],
+                    "enum": [
+                        "api",
+                        "architecture",
+                        "adr",
+                        "runbook",
+                        "feature",
+                        "infrastructure",
+                        "troubleshooting",
+                        "custom",
+                    ],
                     "description": "Type of documentation to generate",
                 },
                 "repo_path": {"type": "string", "description": "Path to code repository (default: '.')"},
@@ -119,7 +126,7 @@ def confluence_document(task: str, doc_type: str, repo_path: str = ".", dry_run:
         )
         return result.summary
     except Exception as e:
-        error_msg = f"Error generating documentation: {str(e)}"
+        error_msg = f"Error generating documentation: {e!s}"
         logger.error(error_msg, exc_info=True)
         return error_msg
 
@@ -152,7 +159,7 @@ def confluence_search(query: str, space_key: str | None = None, max_results: int
 
         return results_text
     except Exception as e:
-        error_msg = f"Error searching pages: {str(e)}"
+        error_msg = f"Error searching pages: {e!s}"
         logger.error(error_msg, exc_info=True)
         return error_msg
 
@@ -172,11 +179,11 @@ def confluence_archive(page_id: str, reason: str = "Archived by automation") -> 
         config = get_default_config()
         skill = ConfluenceSkill(config)
 
-        result = skill.archive_page(page_id=page_id)
+        _ = skill.archive_page(page_id=page_id)
 
         return f"Successfully archived page {page_id}. Reason: {reason}"
     except Exception as e:
-        error_msg = f"Error archiving page: {str(e)}"
+        error_msg = f"Error archiving page: {e!s}"
         logger.error(error_msg, exc_info=True)
         return error_msg
 

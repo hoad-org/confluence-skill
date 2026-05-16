@@ -1,16 +1,17 @@
 """Tests for configuration merging and local config."""
 
-import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from confluence_skill.models import (
-    SkillConfig,
-    LocalConfig,
-    DocumentationConfig,
     CodeAnalysisConfig,
+    DocumentationConfig,
     JiraConfig,
+    LocalConfig,
     MetadataConfig,
+    SkillConfig,
 )
 
 

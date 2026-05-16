@@ -4,8 +4,6 @@ import ast
 import json
 import re
 from pathlib import Path
-from typing import Optional
-from subprocess import run, PIPE
 
 from rich.console import Console
 
@@ -150,12 +148,14 @@ class CodeScanner:
 
             for pattern in route_patterns:
                 for match in re.finditer(pattern, content):
-                    apis.append({
-                        "type": "endpoint",
-                        "method": match.group(1).upper() if match.lastindex >= 1 else "GET",
-                        "path": match.group(2) if match.lastindex >= 2 else "",
-                        "file": str(file_path),
-                    })
+                    apis.append(
+                        {
+                            "type": "endpoint",
+                            "method": match.group(1).upper() if match.lastindex >= 1 else "GET",
+                            "path": match.group(2) if match.lastindex >= 2 else "",
+                            "file": str(file_path),
+                        }
+                    )
         except Exception as e:
             self.console.print(f"[yellow]Error parsing {file_path}: {e}[/yellow]")
 
@@ -184,11 +184,13 @@ class CodeScanner:
 
             for pattern in patterns:
                 for match in re.finditer(pattern, content):
-                    apis.append({
-                        "type": "endpoint",
-                        "path": match.group(1),
-                        "file": str(file_path),
-                    })
+                    apis.append(
+                        {
+                            "type": "endpoint",
+                            "path": match.group(1),
+                            "file": str(file_path),
+                        }
+                    )
         except Exception as e:
             self.console.print(f"[yellow]Error parsing {file_path}: {e}[/yellow]")
 
@@ -213,11 +215,13 @@ class CodeScanner:
             pattern = r'r\.(?:GET|POST|PUT|DELETE)\(["\']([^"\']+)["\']'
 
             for match in re.finditer(pattern, content):
-                apis.append({
-                    "type": "endpoint",
-                    "path": match.group(1),
-                    "file": str(file_path),
-                })
+                apis.append(
+                    {
+                        "type": "endpoint",
+                        "path": match.group(1),
+                        "file": str(file_path),
+                    }
+                )
         except Exception as e:
             self.console.print(f"[yellow]Error parsing {file_path}: {e}[/yellow]")
 
@@ -241,15 +245,17 @@ class CodeScanner:
             ext = file_path.suffix
             file_counts[ext] = file_counts.get(ext, 0) + 1
 
-        architecture.append({
-            "type": "file_structure",
-            "summary": f"Repository contains {len(file_counts)} file types",
-            "details": file_counts,
-        })
+        architecture.append(
+            {
+                "type": "file_structure",
+                "summary": f"Repository contains {len(file_counts)} file types",
+                "details": file_counts,
+            }
+        )
 
         return architecture
 
-    def _extract_dependencies(self, repo_path: Path, repo_config: dict) -> list[dict]:
+    def _extract_dependencies(self, repo_path: Path, _repo_config: dict) -> list[dict]:
         """Extract dependencies from manifest files.
 
         Args:
@@ -269,11 +275,13 @@ class CodeScanner:
                     for line in f:
                         line = line.strip()
                         if line and not line.startswith("#"):
-                            dependencies.append({
-                                "type": "python",
-                                "name": line.split("==")[0].split(">=")[0],
-                                "spec": line,
-                            })
+                            dependencies.append(
+                                {
+                                    "type": "python",
+                                    "name": line.split("==")[0].split(">=")[0],
+                                    "spec": line,
+                                }
+                            )
             except Exception as e:
                 self.console.print(f"[yellow]Error reading requirements.txt: {e}[/yellow]")
 
@@ -284,11 +292,13 @@ class CodeScanner:
                 with open(pkg_json) as f:
                     data = json.load(f)
                     for pkg, version in data.get("dependencies", {}).items():
-                        dependencies.append({
-                            "type": "npm",
-                            "name": pkg,
-                            "version": version,
-                        })
+                        dependencies.append(
+                            {
+                                "type": "npm",
+                                "name": pkg,
+                                "version": version,
+                            }
+                        )
             except Exception as e:
                 self.console.print(f"[yellow]Error reading package.json: {e}[/yellow]")
 
@@ -314,14 +324,14 @@ class CodeScanner:
 
                     for node in ast.walk(tree):
                         if isinstance(node, ast.ClassDef):
-                            classes.append({
-                                "type": "class",
-                                "name": node.name,
-                                "file": str(file_path.relative_to(repo_path)),
-                                "methods": [
-                                    m.name for m in node.body if isinstance(m, ast.FunctionDef)
-                                ],
-                            })
+                            classes.append(
+                                {
+                                    "type": "class",
+                                    "name": node.name,
+                                    "file": str(file_path.relative_to(repo_path)),
+                                    "methods": [m.name for m in node.body if isinstance(m, ast.FunctionDef)],
+                                }
+                            )
                 except Exception as e:
                     self.console.print(f"[yellow]Error parsing {file_path}: {e}[/yellow]")
 
@@ -349,11 +359,13 @@ class CodeScanner:
                         if isinstance(node, ast.FunctionDef):
                             # Only include module-level functions
                             if isinstance(node, ast.FunctionDef):
-                                functions.append({
-                                    "type": "function",
-                                    "name": node.name,
-                                    "file": str(file_path.relative_to(repo_path)),
-                                })
+                                functions.append(
+                                    {
+                                        "type": "function",
+                                        "name": node.name,
+                                        "file": str(file_path.relative_to(repo_path)),
+                                    }
+                                )
                 except Exception as e:
                     self.console.print(f"[yellow]Error parsing {file_path}: {e}[/yellow]")
 

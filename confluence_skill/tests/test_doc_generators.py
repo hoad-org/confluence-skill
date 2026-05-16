@@ -3,10 +3,10 @@
 import pytest
 
 from confluence_skill.doc_generators import (
+    ADRDocGenerator,
     APIDocGenerator,
     ArchitectureDocGenerator,
     RunbookDocGenerator,
-    ADRDocGenerator,
     create_generator,
 )
 from confluence_skill.models import DocumentMetadata, DocumentTemplate

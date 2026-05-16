@@ -1,23 +1,23 @@
 """Integration tests for Confluence skill."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from confluence_skill.skill import ConfluenceSkill
-from confluence_skill.models import SkillConfig, ConfluenceConfig, DocumentTemplate
 
 
 @pytest.fixture
 def skill(skill_config):
     """Create skill instance for testing."""
     # Mock the ConfluenceClient to avoid real API calls
-    with patch('confluence_skill.skill.ConfluenceClient'):
+    with patch("confluence_skill.skill.ConfluenceClient"):
         return ConfluenceSkill(skill_config)
 
 
 def test_skill_initialization(skill_config):
     """Test skill initialization."""
-    with patch('confluence_skill.skill.ConfluenceClient'):
+    with patch("confluence_skill.skill.ConfluenceClient"):
         skill = ConfluenceSkill(skill_config)
     assert skill.config == skill_config
     assert skill.console is not None
@@ -25,9 +25,9 @@ def test_skill_initialization(skill_config):
 
 def test_skill_document_dry_run(skill, document_metadata):
     """Test document generation in dry-run mode."""
-    with patch.object(skill.scanner, 'scan_repos', return_value={}):
-        with patch.object(skill.client, 'find_page_by_title', return_value=None):
-            with patch.object(skill.client, 'check_write_permission', return_value=True):
+    with patch.object(skill.scanner, "scan_repos", return_value={}):
+        with patch.object(skill.client, "find_page_by_title", return_value=None):
+            with patch.object(skill.client, "check_write_permission", return_value=True):
                 result = skill.document(
                     task="Test API Documentation",
                     doc_type="api",
@@ -40,26 +40,26 @@ def test_skill_document_dry_run(skill, document_metadata):
 
 def test_skill_document_existing_page(skill):
     """Test handling of existing pages."""
-    with patch.object(skill.scanner, 'scan_repos', return_value={}):
+    with patch.object(skill.scanner, "scan_repos", return_value={}):
         with patch.object(
             skill.client,
-            'find_page_by_title',
-            return_value={'id': 'page-123', 'title': 'Test'},
+            "find_page_by_title",
+            return_value={"id": "page-123", "title": "Test"},
         ):
-            with patch.object(skill.client, 'check_write_permission', return_value=True):
+            with patch.object(skill.client, "check_write_permission", return_value=True):
                 result = skill.document(
                     task="Test API Documentation",
                     dry_run=True,
                 )
 
-    assert result.document_id == 'page-123'
+    assert result.document_id == "page-123"
 
 
 def test_skill_document_permission_denied(skill):
     """Test permission check failure."""
-    with patch.object(skill.scanner, 'scan_repos', return_value={}):
-        with patch.object(skill.client, 'find_page_by_title', return_value=None):
-            with patch.object(skill.client, 'check_write_permission', return_value=False):
+    with patch.object(skill.scanner, "scan_repos", return_value={}):
+        with patch.object(skill.client, "find_page_by_title", return_value=None):
+            with patch.object(skill.client, "check_write_permission", return_value=False):
                 result = skill.document(
                     task="Test Documentation",
                     dry_run=True,
@@ -71,9 +71,9 @@ def test_skill_document_permission_denied(skill):
 
 def test_skill_document_with_extracted_info(skill, extracted_info):
     """Test document generation with code analysis."""
-    with patch.object(skill.scanner, 'scan_repos', return_value=extracted_info):
-        with patch.object(skill.client, 'find_page_by_title', return_value=None):
-            with patch.object(skill.client, 'check_write_permission', return_value=True):
+    with patch.object(skill.scanner, "scan_repos", return_value=extracted_info):
+        with patch.object(skill.client, "find_page_by_title", return_value=None):
+            with patch.object(skill.client, "check_write_permission", return_value=True):
                 result = skill.document(
                     task="Payment Service API",
                     doc_type="api",
@@ -87,13 +87,13 @@ def test_skill_document_with_extracted_info(skill, extracted_info):
 
 def test_skill_document_validates_metadata(skill):
     """Test that document validates metadata."""
-    with patch.object(skill.validator, 'validate_metadata') as mock_validate:
+    with patch.object(skill.validator, "validate_metadata") as mock_validate:
         mock_validate.return_value = True
 
-        with patch.object(skill.scanner, 'scan_repos', return_value={}):
-            with patch.object(skill.client, 'find_page_by_title', return_value=None):
-                with patch.object(skill.client, 'check_write_permission', return_value=True):
-                    result = skill.document(
+        with patch.object(skill.scanner, "scan_repos", return_value={}):
+            with patch.object(skill.client, "find_page_by_title", return_value=None):
+                with patch.object(skill.client, "check_write_permission", return_value=True):
+                    _ = skill.document(
                         task="Test",
                         dry_run=True,
                     )
@@ -103,11 +103,11 @@ def test_skill_document_validates_metadata(skill):
 
 def test_skill_document_validates_content(skill):
     """Test that document validates content."""
-    with patch.object(skill.validator, 'validate_content') as mock_validate:
-        with patch.object(skill.scanner, 'scan_repos', return_value={}):
-            with patch.object(skill.client, 'find_page_by_title', return_value=None):
-                with patch.object(skill.client, 'check_write_permission', return_value=True):
-                    result = skill.document(
+    with patch.object(skill.validator, "validate_content") as mock_validate:
+        with patch.object(skill.scanner, "scan_repos", return_value={}):
+            with patch.object(skill.client, "find_page_by_title", return_value=None):
+                with patch.object(skill.client, "check_write_permission", return_value=True):
+                    _ = skill.document(
                         task="Test",
                         dry_run=True,
                     )
@@ -121,11 +121,11 @@ def test_skill_create_page(skill):
     mock_client.find_page_by_title.return_value = None
     mock_client.check_write_permission.return_value = True
     mock_client.create_page.return_value = {
-        'id': 'new-page-123',
-        'title': 'New Page',
+        "id": "new-page-123",
+        "title": "New Page",
     }
 
-    with patch.object(skill.scanner, 'scan_repos', return_value={}):
+    with patch.object(skill.scanner, "scan_repos", return_value={}):
         result = skill.document(
             task="New Documentation",
             dry_run=False,
@@ -137,12 +137,12 @@ def test_skill_create_page(skill):
 
 def test_skill_configuration_override(skill_config):
     """Test configuration overrides."""
-    with patch('confluence_skill.skill.ConfluenceClient'):
+    with patch("confluence_skill.skill.ConfluenceClient"):
         skill = ConfluenceSkill(skill_config)
 
-        with patch.object(skill.scanner, 'scan_repos', return_value={}):
-            with patch.object(skill.client, 'find_page_by_title', return_value=None):
-                with patch.object(skill.client, 'check_write_permission', return_value=True):
+        with patch.object(skill.scanner, "scan_repos", return_value={}):
+            with patch.object(skill.client, "find_page_by_title", return_value=None):
+                with patch.object(skill.client, "check_write_permission", return_value=True):
                     result = skill.document(
                         task="Test",
                         doc_type="architecture",  # Override template
@@ -155,9 +155,9 @@ def test_skill_configuration_override(skill_config):
 
 def test_skill_duration_tracking(skill):
     """Test that skill tracks operation duration."""
-    with patch.object(skill.scanner, 'scan_repos', return_value={}):
-        with patch.object(skill.client, 'find_page_by_title', return_value=None):
-            with patch.object(skill.client, 'check_write_permission', return_value=True):
+    with patch.object(skill.scanner, "scan_repos", return_value={}):
+        with patch.object(skill.client, "find_page_by_title", return_value=None):
+            with patch.object(skill.client, "check_write_permission", return_value=True):
                 result = skill.document(
                     task="Test",
                     dry_run=True,
@@ -168,7 +168,7 @@ def test_skill_duration_tracking(skill):
 
 def test_skill_error_handling(skill):
     """Test skill error handling."""
-    with patch.object(skill.scanner, 'scan_repos', side_effect=Exception("Scan failed")):
+    with patch.object(skill.scanner, "scan_repos", side_effect=Exception("Scan failed")):
         result = skill.document(
             task="Test",
             dry_run=True,

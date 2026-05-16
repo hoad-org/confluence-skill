@@ -1,16 +1,16 @@
 """Pytest fixtures and configuration for Confluence skill tests."""
 
+from unittest.mock import MagicMock
+
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, MagicMock
 
 from confluence_skill.models import (
-    SkillConfig,
+    CodeAnalysisConfig,
     ConfluenceConfig,
     DocumentationConfig,
-    CodeAnalysisConfig,
-    GuardrailsConfig,
     DocumentMetadata,
+    GuardrailsConfig,
+    SkillConfig,
 )
 
 

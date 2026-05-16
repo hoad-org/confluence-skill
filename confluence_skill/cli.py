@@ -5,15 +5,12 @@ allowing users to invoke Confluence operations from the terminal.
 """
 
 import argparse
-import json
 import logging
 import sys
-from pathlib import Path
-from typing import Any
 
-from confluence_skill.skill import ConfluenceSkill
-from confluence_skill.models import SkillConfig
 from confluence_skill._version import __version__
+from confluence_skill.models import SkillConfig
+from confluence_skill.skill import ConfluenceSkill
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +65,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 
         if pages:
             print(f"Found {len(pages)} pages:")
-            for page in pages[:args.max_results]:
+            for page in pages[: args.max_results]:
                 title = page.get("title", "Untitled")
                 page_id = page.get("id", "unknown")
                 url = page.get("_links", {}).get("webui", "")
@@ -99,7 +96,8 @@ def cmd_archive(args: argparse.Namespace) -> int:
 
 def cmd_help_mcp(args: argparse.Namespace) -> int:
     """Show MCP server help information."""
-    print("""
+    print(
+        """
 Confluence Skill MCP Server
 ===========================
 
@@ -131,7 +129,8 @@ Configuration File:
 For more information:
   confluence --help
   confluence <command> --help
-""")
+"""
+    )
     return 0
 
 
@@ -157,7 +156,8 @@ For more information, visit: https://github.com/rhyscraig/confluence-skill
     )
 
     parser.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="store_true",
         help="Enable verbose logging",
     )
@@ -173,14 +173,16 @@ For more information, visit: https://github.com/rhyscraig/confluence-skill
     doc_parser = subparsers.add_parser("document", help="Generate documentation")
     doc_parser.add_argument("task", help="Documentation task")
     doc_parser.add_argument(
-        "--doc-type", "-t",
+        "--doc-type",
+        "-t",
         dest="doc_type",
         choices=["api", "architecture", "adr", "runbook", "feature", "infrastructure", "troubleshooting", "custom"],
         required=True,
         help="Type of documentation",
     )
     doc_parser.add_argument(
-        "--repo-path", "-r",
+        "--repo-path",
+        "-r",
         dest="repo_path",
         default=".",
         help="Repository path (default: .)",
@@ -204,13 +206,15 @@ For more information, visit: https://github.com/rhyscraig/confluence-skill
     search_parser = subparsers.add_parser("search", help="Search for pages")
     search_parser.add_argument("query", help="Search query")
     search_parser.add_argument(
-        "--space-key", "-s",
+        "--space-key",
+        "-s",
         dest="space_key",
         default=None,
         help="Confluence space key (optional)",
     )
     search_parser.add_argument(
-        "--max-results", "-m",
+        "--max-results",
+        "-m",
         dest="max_results",
         type=int,
         default=10,

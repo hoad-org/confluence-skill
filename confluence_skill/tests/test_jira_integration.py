@@ -1,7 +1,8 @@
 """Tests for Jira integration."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 from confluence_skill.jira_integration import JiraClient, JiraIntegration
 from confluence_skill.models import JiraConfig
@@ -113,7 +114,7 @@ def test_jira_client_create_issue_with_epic(jira_client):
     mock_response.json.return_value = {"key": "TEST-42"}
     jira_client.session.post.return_value = mock_response
 
-    issue = jira_client.create_issue(
+    _ = jira_client.create_issue(
         "TEST",
         summary="Document API",
         description="Add API docs",

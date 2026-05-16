@@ -1,12 +1,10 @@
 """Safety guardrails and validation for Confluence skill."""
 
 import re
-from typing import Optional
-from urllib.parse import urlparse
 
 from rich.console import Console
 
-from .models import GuardrailsConfig, ValidationError, DocumentMetadata
+from .models import DocumentMetadata, GuardrailsConfig, ValidationError
 
 
 class GuardailValidator:
@@ -72,12 +70,12 @@ class GuardailValidator:
 
         return len(self.errors) == 0
 
-    def validate_content(self, content: str, metadata: DocumentMetadata) -> bool:
+    def validate_content(self, content: str, _metadata: DocumentMetadata) -> bool:
         """Validate document content.
 
         Args:
             content: Document content (HTML/storage format)
-            metadata: Document metadata
+            _metadata: Document metadata
 
         Returns:
             True if content is valid
@@ -258,7 +256,7 @@ class ApprovalGate:
 
         return False
 
-    def request_merge_strategy(self, document_title: str) -> Optional[str]:
+    def request_merge_strategy(self, document_title: str) -> str | None:
         """Ask user how to handle existing document.
 
         Args:

@@ -2,13 +2,12 @@
 
 import os
 import re
-from typing import Optional
 from urllib.parse import urljoin
 
 import requests
 from rich.console import Console
 
-from .models import JiraConfig, DocumentMetadata
+from .models import JiraConfig
 
 
 class JiraClient:
@@ -31,9 +30,7 @@ class JiraClient:
         # Get auth token
         token = os.getenv(config.auth_token_env)
         if not token:
-            self.console.print(
-                f"[yellow]Warning: {config.auth_token_env} not set, Jira integration disabled[/yellow]"
-            )
+            self.console.print(f"[yellow]Warning: {config.auth_token_env} not set, Jira integration disabled[/yellow]")
             self.enabled = False
             return
 
@@ -44,11 +41,13 @@ class JiraClient:
     def _create_session(self) -> requests.Session:
         """Create authenticated session."""
         session = requests.Session()
-        session.headers.update({
-            "Authorization": f"Bearer {self.auth_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        })
+        session.headers.update(
+            {
+                "Authorization": f"Bearer {self.auth_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+        )
         return session
 
     def _api_url(self, path: str) -> str:
@@ -59,7 +58,7 @@ class JiraClient:
         self,
         project: str,
         search_text: str,
-        issue_types: Optional[list[str]] = None,
+        issue_types: list[str] | None = None,
     ) -> list[dict]:
         """Find Jira issues related to service.
 
@@ -97,7 +96,7 @@ class JiraClient:
             self.console.print(f"[yellow]Warning: Failed to search Jira: {e}[/yellow]")
             return []
 
-    def find_epic_for_service(self, project: str, service_name: str) -> Optional[dict]:
+    def find_epic_for_service(self, project: str, service_name: str) -> dict | None:
         """Find epic for a service.
 
         Args:
@@ -127,9 +126,9 @@ class JiraClient:
         summary: str,
         description: str,
         issue_type: str = "Task",
-        epic_key: Optional[str] = None,
-        labels: Optional[list[str]] = None,
-    ) -> Optional[dict]:
+        epic_key: str | None = None,
+        labels: list[str] | None = None,
+    ) -> dict | None:
         """Create a Jira issue.
 
         Args:
@@ -178,7 +177,7 @@ class JiraClient:
             self.console.print(f"[yellow]Warning: Failed to create Jira issue: {e}[/yellow]")
             return None
 
-    def get_issue(self, issue_key: str) -> Optional[dict]:
+    def get_issue(self, issue_key: str) -> dict | None:
         """Get issue details.
 
         Args:
@@ -250,10 +249,7 @@ class JiraIntegration:
                 status = issue.get("fields", {}).get("status", {}).get("name", "Open")
                 url = issue.get("self", "").replace("/rest/api/3/issue/", "/browse/")
 
-                html_parts.append(
-                    f'<li><a href="{url}">{issue_key}</a>: {summary} '
-                    f'<em>({status})</em></li>'
-                )
+                html_parts.append(f'<li><a href="{url}">{issue_key}</a>: {summary} ' f"<em>({status})</em></li>")
 
             html_parts.append("</ul>")
             confluence_client.add_page_comment(page_id, "\n".join(html_parts))
@@ -315,7 +311,7 @@ class JiraIntegration:
         self,
         project: str,
         apis: list[dict],
-        epic_key: Optional[str] = None,
+        epic_key: str | None = None,
     ) -> list[dict]:
         """Create Jira tasks for undocumented APIs.
 
@@ -379,8 +375,8 @@ class JiraIntegration:
         if not issues:
             return ""
 
-        html = '<h2>Implementation Status</h2>\n'
-        html += '<table><tbody><tr><th>Key</th><th>Summary</th><th>Status</th></tr>\n'
+        html = "<h2>Implementation Status</h2>\n"
+        html += "<table><tbody><tr><th>Key</th><th>Summary</th><th>Status</th></tr>\n"
 
         for issue in issues[:10]:  # Limit to first 10
             key = issue.get("key", "")
@@ -388,11 +384,7 @@ class JiraIntegration:
             status = issue.get("fields", {}).get("status", {}).get("name", "Unknown")
             url = issue.get("self", "").replace("/rest/api/3/issue/", "/browse/")
 
-            html += (
-                f'<tr><td><a href="{url}">{key}</a></td>'
-                f"<td>{summary}</td>"
-                f"<td><em>{status}</em></td></tr>\n"
-            )
+            html += f'<tr><td><a href="{url}">{key}</a></td>' f"<td>{summary}</td>" f"<td><em>{status}</em></td></tr>\n"
 
         html += "</tbody></table>\n"
 

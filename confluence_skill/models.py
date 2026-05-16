@@ -1,14 +1,14 @@
 """Data models and validation for Confluence skill."""
 
 import hashlib
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Any
+from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class MergeStrategy(str, Enum):
@@ -46,7 +46,7 @@ class ConfluenceConfig(BaseModel):
     """Confluence instance configuration."""
 
     instance_url: str = Field(..., description="Confluence Cloud instance URL")
-    space_key: Optional[str] = Field(None, description="Default space key")
+    space_key: str | None = Field(None, description="Default space key")
     auth_token_env: str = Field(default="CONFLUENCE_TOKEN", description="Auth token env var")
     api_timeout_seconds: int = Field(default=30, ge=5, le=60)
     rate_limit_per_minute: int = Field(default=60, ge=10, le=300)
@@ -65,13 +65,13 @@ class ConfluenceConfig(BaseModel):
 class MetadataConfig(BaseModel):
     """Document metadata configuration."""
 
-    owner: Optional[str] = None
+    owner: str | None = None
     audience: list[str] = Field(default_factory=list)
     status: DocumentStatus = DocumentStatus.DRAFT
     labels: list[str] = Field(default_factory=list)
-    version: Optional[str] = None
-    last_updated: Optional[datetime] = None
-    last_updated_by: Optional[str] = None
+    version: str | None = None
+    last_updated: datetime | None = None
+    last_updated_by: str | None = None
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -80,9 +80,9 @@ class DocumentationConfig(BaseModel):
     """Documentation generation configuration."""
 
     template: DocumentTemplate = DocumentTemplate.CUSTOM
-    space_key: Optional[str] = None
-    parent_page: Optional[str] = None
-    parent_page_id: Optional[str] = None
+    space_key: str | None = None
+    parent_page: str | None = None
+    parent_page_id: str | None = None
     auto_title: bool = True
     merge_strategy: MergeStrategy = MergeStrategy.INTERACTIVE
     version_tracking: bool = True
@@ -121,6 +121,10 @@ class GuardrailsConfig(BaseModel):
     max_document_size_kb: int = 2000
     required_metadata_fields: list[str] = Field(default_factory=lambda: ["owner", "audience"])
     deprecated_terms: list[str] = Field(default_factory=list)
+    enforce_page_nesting: bool = False  # Opt-in feature for hierarchical documentation
+    max_page_depth: int = 3
+    parent_page_only_for_roots: bool = True
+    aws_documentation_style: bool = True
 
 
 class IntegrationConfig(BaseModel):
@@ -134,7 +138,7 @@ class OutputConfig(BaseModel):
     """Output and logging configuration."""
 
     verbose: bool = False
-    log_file: Optional[str] = None
+    log_file: str | None = None
     create_audit_trail: bool = True
 
 
@@ -142,12 +146,12 @@ class JiraConfig(BaseModel):
     """Jira integration configuration."""
 
     enabled: bool = False
-    instance_url: Optional[str] = None
+    instance_url: str | None = None
     auth_token_env: str = "JIRA_TOKEN"
-    default_project: Optional[str] = None
+    default_project: str | None = None
     auto_link_related: bool = True
     create_tasks_for_gaps: bool = False
-    epic_link_pattern: Optional[str] = None  # e.g., "PROJ-\d+"
+    epic_link_pattern: str | None = None  # e.g., "PROJ-\d+"
     custom_fields: dict[str, str] = Field(default_factory=dict)
 
     model_config = ConfigDict(use_enum_values=True)
@@ -190,6 +194,35 @@ class SkillConfig(BaseModel):
             data = yaml.safe_load(f)
         return cls(**data)
 
+    @classmethod
+    def from_env(cls) -> "SkillConfig":
+        """Load configuration from environment variables."""
+        import os
+
+        confluence_url = os.getenv("CONFLUENCE_INSTANCE", "").strip()
+        jira_url = os.getenv("JIRA_INSTANCE", "").strip()
+
+        return cls(
+            confluence=ConfluenceConfig(
+                instance_url=confluence_url or "https://org.atlassian.net",
+                space_key=os.getenv("CONFLUENCE_SPACE", "ENGINEERING"),
+                auth_token_env="CONFLUENCE_TOKEN",
+            ),
+            jira=JiraConfig(
+                enabled=bool(os.getenv("JIRA_TOKEN")),
+                instance_url=jira_url or "https://org.atlassian.net",
+                auth_token_env="JIRA_TOKEN",
+                default_project=os.getenv("JIRA_PROJECT", ""),
+            ),
+            documentation=DocumentationConfig(
+                metadata=MetadataConfig(
+                    owner=os.getenv("DOC_OWNER", "platform-team"),
+                    audience=os.getenv("DOC_AUDIENCE", "engineers").split(","),
+                    labels=os.getenv("DOC_LABELS", "auto-generated").split(","),
+                )
+            ),
+        )
+
     def to_dict(self) -> dict:
         """Convert to dictionary (handles enums)."""
         return asdict(self)
@@ -228,9 +261,9 @@ class SkillConfig(BaseModel):
 class LocalConfig(BaseModel):
     """Local repository-level configuration overrides."""
 
-    documentation: Optional[DocumentationConfig] = None
-    jira: Optional[JiraConfig] = None
-    code_analysis: Optional[CodeAnalysisConfig] = None
+    documentation: DocumentationConfig | None = None
+    jira: JiraConfig | None = None
+    code_analysis: CodeAnalysisConfig | None = None
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "LocalConfig":
@@ -247,19 +280,19 @@ class DocumentMetadata:
     """Metadata for a Confluence document."""
 
     title: str
-    page_id: Optional[str] = None
-    space_key: Optional[str] = None
-    parent_page_id: Optional[str] = None
+    page_id: str | None = None
+    space_key: str | None = None
+    parent_page_id: str | None = None
     version: str = "1.0"
-    owner: Optional[str] = None
+    owner: str | None = None
     audience: list[str] = field(default_factory=list)
     status: str = "draft"
     labels: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = None
-    updated_by: Optional[str] = None
+    updated_at: datetime | None = None
+    updated_by: str | None = None
     source_repos: list[str] = field(default_factory=list)
-    source_hash: Optional[str] = None
+    source_hash: str | None = None
 
     def content_hash(self) -> str:
         """Generate hash of metadata for change detection."""
@@ -275,8 +308,8 @@ class DocumentChange:
     title: str
     action: str  # create, update, merge
     changes_made: list[str] = field(default_factory=list)
-    metadata_before: Optional[DocumentMetadata] = None
-    metadata_after: Optional[DocumentMetadata] = None
+    metadata_before: DocumentMetadata | None = None
+    metadata_after: DocumentMetadata | None = None
     dry_run: bool = True
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
@@ -297,7 +330,7 @@ class ValidationError:
     level: str  # error, warning, info
     field: str
     message: str
-    suggestion: Optional[str] = None
+    suggestion: str | None = None
 
 
 @dataclass
@@ -305,13 +338,13 @@ class DocumentGenerationResult:
     """Result of document generation operation."""
 
     success: bool
-    document_id: Optional[str] = None
-    document_url: Optional[str] = None
-    title: Optional[str] = None
+    document_id: str | None = None
+    document_url: str | None = None
+    title: str | None = None
     changes: list[DocumentChange] = field(default_factory=list)
     errors: list[ValidationError] = field(default_factory=list)
     warnings: list[ValidationError] = field(default_factory=list)
-    content_preview: Optional[str] = None
+    content_preview: str | None = None
     dry_run: bool = True
     duration_seconds: float = 0.0
 
@@ -327,7 +360,7 @@ class DocumentGenerationResult:
             if self.document_url:
                 lines.append(f"   URL: {self.document_url}")
         else:
-            lines.append(f"❌ Generation failed")
+            lines.append("❌ Generation failed")
 
         if self.errors:
             lines.append(f"  Errors ({len(self.errors)}):")

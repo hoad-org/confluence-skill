@@ -14,20 +14,20 @@ def main():
     """Generate basic documentation."""
     # Load configuration from .confluence.yaml or use defaults
     config = SkillConfig.from_yaml(".confluence.yaml")
-    
+
     # Create skill instance
     skill = ConfluenceSkill(config)
-    
+
     # Generate documentation (dry-run mode - no changes to Confluence)
     result = skill.document(
         task="Document the payment API",
         doc_type="api",
         dry_run=True  # Preview only
     )
-    
+
     # Print results
     print(result.summary())
-    
+
     if result.success:
         print(f"\nPreview:\n{result.content_preview}")
     else:

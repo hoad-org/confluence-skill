@@ -3,8 +3,6 @@
 import hashlib
 import os
 import time
-from datetime import datetime, timedelta
-from typing import Optional
 from urllib.parse import urljoin
 
 import requests
@@ -13,6 +11,7 @@ from requests.packages.urllib3.util.retry import Retry
 from rich.console import Console
 
 from .models import ConfluenceConfig
+from .page_hierarchy import PageHierarchyConfig, PageHierarchyValidator
 
 
 class RateLimiter:
@@ -39,15 +38,31 @@ class RateLimiter:
 class ConfluenceClient:
     """Confluence Cloud API client with rate limiting and safety features."""
 
-    def __init__(self, config: ConfluenceConfig):
+    def __init__(self, config: ConfluenceConfig, guardrails_config: dict | None = None):
         """Initialize Confluence client.
 
         Args:
             config: Confluence configuration
+            guardrails_config: Guardrails configuration for page hierarchy validation
         """
         self.config = config
         self.console = Console()
         self.rate_limiter = RateLimiter(config.rate_limit_per_minute)
+
+        # Initialize page hierarchy validator (opt-in, default is False for backwards compatibility)
+        hierarchy_config = PageHierarchyConfig(
+            enforce_nesting=guardrails_config.get("enforce_page_nesting", False)
+            if guardrails_config
+            else False,
+            max_depth=guardrails_config.get("max_page_depth", 3) if guardrails_config else 3,
+            parent_page_only_for_roots=guardrails_config.get("parent_page_only_for_roots", True)
+            if guardrails_config
+            else True,
+            aws_documentation_style=guardrails_config.get("aws_documentation_style", True)
+            if guardrails_config
+            else True,
+        )
+        self.hierarchy_validator = PageHierarchyValidator(hierarchy_config)
 
         # Get auth token
         token = os.getenv(config.auth_token_env)
@@ -75,12 +90,14 @@ class ConfluenceClient:
         session.mount("http://", adapter)
 
         # Set auth headers
-        session.headers.update({
-            "Authorization": f"Bearer {self.auth_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": "ConfluenceSkill/1.0",
-        })
+        session.headers.update(
+            {
+                "Authorization": f"Bearer {self.auth_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "User-Agent": "ConfluenceSkill/1.0",
+            }
+        )
 
         return session
 
@@ -93,8 +110,8 @@ class ConfluenceClient:
         self,
         method: str,
         path: str,
-        data: Optional[dict] = None,
-        params: Optional[dict] = None,
+        data: dict | None = None,
+        params: dict | None = None,
     ) -> dict:
         """Make API request with rate limiting and error handling.
 
@@ -140,7 +157,7 @@ class ConfluenceClient:
         """
         return self._request("GET", f"spaces/{space_key}")
 
-    def find_page_by_title(self, space_key: str, title: str) -> Optional[dict]:
+    def find_page_by_title(self, space_key: str, title: str) -> dict | None:
         """Find page by title in space.
 
         Args:
@@ -227,10 +244,11 @@ class ConfluenceClient:
         space_key: str,
         title: str,
         body: str,
-        parent_page_id: Optional[str] = None,
-        labels: Optional[list[str]] = None,
+        parent_page_id: str | None = None,
+        labels: list[str] | None = None,
+        children: list[dict] | None = None,
     ) -> dict:
-        """Create new page.
+        """Create new page with optional hierarchy validation.
 
         Args:
             space_key: Space key
@@ -238,6 +256,7 @@ class ConfluenceClient:
             body: Page body (storage format)
             parent_page_id: Parent page ID
             labels: Page labels
+            children: Child pages to create (for root-level pages)
 
         Returns:
             Created page details
@@ -245,6 +264,17 @@ class ConfluenceClient:
         Raises:
             ValueError: If validation fails
         """
+        # Validate hierarchy
+        is_root = parent_page_id is None
+        valid, error = self.hierarchy_validator.validate_page_creation(
+            title=title,
+            parent_page_id=parent_page_id,
+            children=children,
+            is_root_level=is_root,
+        )
+        if not valid:
+            raise ValueError(error)
+
         # Validate inputs
         valid, error = InputValidator.validate_space_key(space_key)
         if not valid:
@@ -292,7 +322,7 @@ class ConfluenceClient:
         page_id: str,
         title: str,
         body: str,
-        labels: Optional[list[str]] = None,
+        labels: list[str] | None = None,
     ) -> dict:
         """Update existing page.
 
@@ -639,6 +669,7 @@ class InputValidator:
             Sanitized content
         """
         import html
+
         return html.escape(content)
 
     @staticmethod

@@ -40,28 +40,25 @@ from .models import (
     LocalConfig,
     SkillConfig,
 )
+from .page_hierarchy import PageHierarchyConfig, PageHierarchyValidator
 from .skill import ConfluenceSkill
 
 try:
     from ._version import __version__
 except ImportError:
-    __version__ = "1.2.0"  # Fallback version
+    __version__ = "1.3.0"  # Fallback version
 
 __all__ = [
-    # Main skill
+    "ConfluenceClient",
     "ConfluenceSkill",
-    # Configuration
-    "SkillConfig",
-    "LocalConfig",
-    "JiraConfig",
-    # Results and metadata
     "DocumentGenerationResult",
     "DocumentMetadata",
-    # API client
-    "ConfluenceClient",
     "InputValidator",
-    # Jira integration
+    "JiraConfig",
     "JiraIntegration",
-    # MCP server
+    "LocalConfig",
+    "PageHierarchyConfig",
+    "PageHierarchyValidator",
+    "SkillConfig",
     "mcp",
 ]

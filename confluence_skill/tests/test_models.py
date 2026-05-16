@@ -1,16 +1,14 @@
 """Tests for Confluence skill models."""
 
 import pytest
-from datetime import datetime
 
 from confluence_skill.models import (
-    SkillConfig,
     ConfluenceConfig,
-    DocumentMetadata,
     DocumentChange,
     DocumentGenerationResult,
-    MergeStrategy,
+    DocumentMetadata,
     DocumentStatus,
+    MergeStrategy,
 )
 
 

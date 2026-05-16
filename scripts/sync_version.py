@@ -9,9 +9,9 @@ Usage:
     python3 scripts/sync_version.py --version 2.0.0  # Set explicit version
 """
 
+import re
 import subprocess
 import sys
-import re
 from pathlib import Path
 
 
@@ -80,7 +80,7 @@ def update_pyproject(version: str) -> None:
     )
 
     if updated == content:
-        print(f"⚠ No version line found in pyproject.toml")
+        print("⚠ No version line found in pyproject.toml")
         return
 
     pyproject.write_text(updated)

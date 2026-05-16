@@ -2,8 +2,8 @@
 
 import pytest
 
-from confluence_skill.guardrails import GuardailValidator, ApprovalGate
-from confluence_skill.models import GuardrailsConfig, DocumentMetadata
+from confluence_skill.guardrails import ApprovalGate, GuardailValidator
+from confluence_skill.models import DocumentMetadata, GuardrailsConfig
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ def test_validate_metadata_deprecated_terms(validator, document_metadata):
     """Test validation detects deprecated terms."""
     document_metadata.title = "Legacy API Documentation"
 
-    result = validator.validate_metadata(document_metadata)
+    _ = validator.validate_metadata(document_metadata)
     # Should still be valid but have warnings
     assert any("legacy" in str(w.message).lower() for w in validator.warnings)
 
@@ -99,6 +99,7 @@ def test_validator_reset():
 
     # Add some errors
     from confluence_skill.models import ValidationError
+
     validator.errors = [ValidationError("error", "test", "Test error")]
     validator.warnings = [ValidationError("warning", "test", "Test warning")]
 

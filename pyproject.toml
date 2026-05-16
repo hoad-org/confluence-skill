@@ -4,8 +4,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "confluence-skill"
-version = "1.2.0"
-description = "Enterprise-grade Confluence Cloud documentation skill for Claude with Jira integration"
+version = "1.3.0"
+description = "Enterprise-grade Confluence Cloud documentation skill for Claude with Jira integration and hierarchical page nesting"
 authors = ["Craig Hoad <craig@craighoad.com>"]
 license = "MIT"
 readme = "README.md"
@@ -55,7 +55,7 @@ checkov = "^3.2.510"
 setuptools-scm = "^8.0.0"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["confluence_skill/tests"]
 python_files = "test_*.py"
 addopts = "-v --strict-markers"
 markers = [
@@ -108,6 +108,8 @@ ignore_errors = true
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+
+[tool.ruff.lint]
 select = [
     "E", "F", "W",      # pycodestyle, pyflakes, pycodestyle warnings
     "I",                # isort

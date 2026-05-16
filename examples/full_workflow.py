@@ -8,8 +8,9 @@ This example demonstrates:
 """
 
 from pathlib import Path
+
 from confluence_skill import ConfluenceSkill
-from confluence_skill.models import SkillConfig, LocalConfig
+from confluence_skill.models import LocalConfig, SkillConfig
 
 
 def main():
@@ -17,16 +18,16 @@ def main():
     # Step 1: Load central configuration
     print("1. Loading configuration...")
     config = SkillConfig.from_yaml(Path.home() / ".confluence.yaml")
-    
+
     # Step 2: Merge with local repo configuration
     print("2. Merging with local config...")
     local_config = LocalConfig.from_yaml(".confluence.yaml")
     merged_config = config.merge(local_config)
-    
+
     # Step 3: Create skill instance
     print("3. Creating Confluence skill...")
     skill = ConfluenceSkill(merged_config)
-    
+
     # Step 4: Generate documentation
     print("4. Generating documentation...")
     doc_result = skill.document(
@@ -34,14 +35,14 @@ def main():
         doc_type="architecture",
         dry_run=False  # Actually write to Confluence
     )
-    
+
     if doc_result.success:
         print(f"✅ Created: {doc_result.title}")
         print(f"   URL: {doc_result.document_url}")
     else:
         print(f"❌ Failed: {doc_result.errors}")
         return
-    
+
     # Step 5: Search for related pages
     print("\n5. Searching for related pages...")
     pages = skill.search_pages(
@@ -49,11 +50,11 @@ def main():
         query="API",
         limit=10
     )
-    
+
     print(f"   Found {len(pages)} pages")
     for page in pages[:3]:
         print(f"   - {page['title']}")
-    
+
     # Step 6: Add labels to documentation
     print("\n6. Adding labels...")
     label_result = skill.bulk_label_pages(
@@ -61,7 +62,7 @@ def main():
         query="architecture",
         labels=["auto-generated", "updated"]
     )
-    
+
     print(f"   Labeled: {label_result['success']} pages")
 
 
